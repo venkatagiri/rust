@@ -214,6 +214,7 @@ supported_targets! {
     ("le32-unknown-nacl", le32_unknown_nacl),
     ("asmjs-unknown-emscripten", asmjs_unknown_emscripten),
     ("wasm32-unknown-emscripten", wasm32_unknown_emscripten),
+    ("wasm32-experimental-emscripten", wasm32_experimental_emscripten),
 
     ("thumbv6m-none-eabi", thumbv6m_none_eabi),
     ("thumbv7m-none-eabi", thumbv7m_none_eabi),
@@ -280,6 +281,9 @@ pub struct TargetOptions {
     /// Linker arguments that are unconditionally passed *after* any
     /// user-defined libraries.
     pub post_link_args: LinkArgs,
+
+    /// Environment variables to be set before invoking the linker.
+    pub link_env: Vec<(String, String)>,
 
     /// Extra arguments to pass to the external assembler (when used)
     pub asm_args: Vec<String>,
@@ -450,6 +454,7 @@ impl Default for TargetOptions {
             pre_link_objects_dll: Vec::new(),
             post_link_objects: Vec::new(),
             late_link_args: LinkArgs::new(),
+            link_env: Vec::new(),
             archive_format: "gnu".to_string(),
             custom_unwind_resume: false,
             lib_allocation_crate: "alloc_system".to_string(),
@@ -619,6 +624,21 @@ impl Target {
                     base.options.$key_name = args;
                 }
             } );
+            ($key_name:ident, env) => ( {
+                let name = (stringify!($key_name)).replace("_", "-");
+                if let Some(a) = obj.find(&name[..]).and_then(|o| o.as_array()) {
+                    for o in a {
+                        if let Some(s) = o.as_string() {
+                            let p = s.split('=').collect::<Vec<_>>();
+                            if p.len() == 2 {
+                                let k = p[0].to_string();
+                                let v = p[1].to_string();
+                                base.options.$key_name.push((k, v));
+                            }
+                        }
+                    }
+                }
+            } );
         }
 
         key!(is_builtin, bool);
@@ -630,6 +650,7 @@ impl Target {
         key!(late_link_args, link_args);
         key!(post_link_objects, list);
         key!(post_link_args, link_args);
+        key!(link_env, env);
         key!(asm_args, list);
         key!(cpu);
         key!(features);
@@ -784,6 +805,17 @@ impl ToJson for Target {
                     d.insert(name.to_string(), obj.to_json());
                 }
             } );
+            (env - $attr:ident) => ( {
+                let name = (stringify!($attr)).replace("_", "-");
+                if default.$attr != self.options.$attr {
+                    let obj = self.options.$attr
+                        .iter()
+                        .map(|&(ref k, ref v)| k.clone() + "=" + &v)
+                        .collect::<Vec<_>>();
+                    d.insert(name.to_string(), obj.to_json());
+                }
+            } );
+
         }
 
         target_val!(llvm_target);
@@ -805,6 +837,7 @@ impl ToJson for Target {
         target_option_val!(link_args - late_link_args);
         target_option_val!(post_link_objects);
         target_option_val!(link_args - post_link_args);
+        target_option_val!(env - link_env);
         target_option_val!(asm_args);
         target_option_val!(cpu);
         target_option_val!(features);

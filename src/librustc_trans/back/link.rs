@@ -42,7 +42,8 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str;
-use flate;
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
 use syntax::ast;
 use syntax::attr;
 use syntax_pos::Span;
@@ -328,34 +329,38 @@ pub fn filename_for_input(sess: &Session,
 }
 
 pub fn each_linked_rlib(sess: &Session,
-                        f: &mut FnMut(CrateNum, &Path)) {
+                        f: &mut FnMut(CrateNum, &Path)) -> Result<(), String> {
     let crates = sess.cstore.used_crates(LinkagePreference::RequireStatic).into_iter();
     let fmts = sess.dependency_formats.borrow();
     let fmts = fmts.get(&config::CrateTypeExecutable)
                    .or_else(|| fmts.get(&config::CrateTypeStaticlib))
                    .or_else(|| fmts.get(&config::CrateTypeCdylib))
                    .or_else(|| fmts.get(&config::CrateTypeProcMacro));
-    let fmts = fmts.unwrap_or_else(|| {
-        bug!("could not find formats for rlibs");
-    });
+    let fmts = match fmts {
+        Some(f) => f,
+        None => return Err(format!("could not find formats for rlibs"))
+    };
     for (cnum, path) in crates {
-        match fmts[cnum.as_usize() - 1] {
-            Linkage::NotLinked | Linkage::IncludedFromDylib => continue,
-            _ => {}
+        match fmts.get(cnum.as_usize() - 1) {
+            Some(&Linkage::NotLinked) |
+            Some(&Linkage::IncludedFromDylib) => continue,
+            Some(_) => {}
+            None => return Err(format!("could not find formats for rlibs"))
         }
         let name = sess.cstore.crate_name(cnum).clone();
         let path = match path {
             LibSource::Some(p) => p,
             LibSource::MetadataOnly => {
-                sess.fatal(&format!("could not find rlib for: `{}`, found rmeta (metadata) file",
-                                    name));
+                return Err(format!("could not find rlib for: `{}`, found rmeta (metadata) file",
+                                   name))
             }
             LibSource::None => {
-                sess.fatal(&format!("could not find rlib for: `{}`", name));
+                return Err(format!("could not find rlib for: `{}`", name))
             }
         };
         f(cnum, &path);
     }
+    Ok(())
 }
 
 fn out_filename(sess: &Session,
@@ -424,6 +429,10 @@ fn link_binary_output(sess: &Session,
             }
         }
         out_filenames.push(out_filename);
+    }
+
+    if sess.opts.cg.save_temps {
+        let _ = tmpdir.into_path();
     }
 
     out_filenames
@@ -570,7 +579,9 @@ fn link_rlib<'a>(sess: &'a Session,
                                                  e))
                 }
 
-                let bc_data_deflated = flate::deflate_bytes(&bc_data);
+                let mut bc_data_deflated = Vec::new();
+                ZlibEncoder::new(&mut bc_data_deflated, Compression::Default)
+                    .write_all(&bc_data).unwrap();
 
                 let mut bc_file_deflated = match fs::File::create(&bc_deflated_filename) {
                     Ok(file) => file,
@@ -666,7 +677,7 @@ fn link_staticlib(sess: &Session, objects: &[PathBuf], out_filename: &Path,
     let mut ab = link_rlib(sess, None, objects, out_filename, tempdir);
     let mut all_native_libs = vec![];
 
-    each_linked_rlib(sess, &mut |cnum, path| {
+    let res = each_linked_rlib(sess, &mut |cnum, path| {
         let name = sess.cstore.crate_name(cnum);
         let native_libs = sess.cstore.native_libraries(cnum);
 
@@ -691,6 +702,9 @@ fn link_staticlib(sess: &Session, objects: &[PathBuf], out_filename: &Path,
 
         all_native_libs.extend(sess.cstore.native_libraries(cnum));
     });
+    if let Err(e) = res {
+        sess.fatal(&e);
+    }
 
     ab.update_symbols();
     ab.build();
@@ -774,6 +788,9 @@ fn link_natively(sess: &Session,
     }
     if let Some(args) = sess.target.target.options.post_link_args.get(&flavor) {
         cmd.args(args);
+    }
+    for &(ref k, ref v) in &sess.target.target.options.link_env {
+        cmd.env(k, v);
     }
 
     if sess.opts.debugging_opts.print_link_args {
@@ -1101,6 +1118,9 @@ fn add_upstream_rust_crates(cmd: &mut Linker,
         // symbols from the dylib.
         let src = sess.cstore.used_crate_source(cnum);
         match data[cnum.as_usize() - 1] {
+            _ if sess.cstore.is_profiler_runtime(cnum) => {
+                add_static_crate(cmd, sess, tmpdir, crate_type, cnum);
+            }
             _ if sess.cstore.is_sanitizer_runtime(cnum) => {
                 link_sanitizer_runtime(cmd, sess, tmpdir, cnum);
             }

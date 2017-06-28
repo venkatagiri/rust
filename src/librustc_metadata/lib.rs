@@ -26,9 +26,6 @@
 #![feature(specialization)]
 #![feature(discriminant_value)]
 #![feature(rustc_private)]
-
-#![cfg_attr(stage0, unstable(feature = "rustc_private", issue = "27812"))]
-#![cfg_attr(stage0, feature(staged_api))]
 #![feature(sort_unstable)]
 
 #[macro_use]
@@ -36,7 +33,7 @@ extern crate log;
 #[macro_use]
 extern crate syntax;
 extern crate syntax_pos;
-extern crate flate;
+extern crate flate2;
 extern crate serialize as rustc_serialize; // used by deriving
 extern crate owning_ref;
 extern crate rustc_errors as errors;

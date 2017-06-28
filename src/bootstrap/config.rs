@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 use std::env;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process;
@@ -50,6 +50,7 @@ pub struct Config {
     pub full_bootstrap: bool,
     pub extended: bool,
     pub sanitizers: bool,
+    pub profiler: bool,
 
     // llvm codegen options
     pub llvm_assertions: bool,
@@ -59,6 +60,7 @@ pub struct Config {
     pub llvm_static_stdcpp: bool,
     pub llvm_link_shared: bool,
     pub llvm_targets: Option<String>,
+    pub llvm_experimental_targets: Option<String>,
     pub llvm_link_jobs: Option<u32>,
     pub llvm_clean_rebuild: bool,
 
@@ -162,6 +164,7 @@ struct Build {
     extended: Option<bool>,
     verbose: Option<usize>,
     sanitizers: Option<bool>,
+    profiler: Option<bool>,
     openssl_static: Option<bool>,
 }
 
@@ -187,6 +190,7 @@ struct Llvm {
     version_check: Option<bool>,
     static_libstdcpp: Option<bool>,
     targets: Option<String>,
+    experimental_targets: Option<String>,
     link_jobs: Option<u32>,
     clean_rebuild: Option<bool>,
 }
@@ -318,6 +322,7 @@ impl Config {
         set(&mut config.extended, build.extended);
         set(&mut config.verbose, build.verbose);
         set(&mut config.sanitizers, build.sanitizers);
+        set(&mut config.profiler, build.profiler);
         set(&mut config.openssl_static, build.openssl_static);
 
         if let Some(ref install) = toml.install {
@@ -347,6 +352,7 @@ impl Config {
             set(&mut config.llvm_static_stdcpp, llvm.static_libstdcpp);
             set(&mut config.llvm_clean_rebuild, llvm.clean_rebuild);
             config.llvm_targets = llvm.targets.clone();
+            config.llvm_experimental_targets = llvm.experimental_targets.clone();
             config.llvm_link_jobs = llvm.link_jobs;
         }
 
@@ -404,6 +410,12 @@ impl Config {
             set(&mut config.rust_dist_src, t.src_tarball);
         }
 
+
+        // compat with `./configure` while we're still using that
+        if fs::metadata("config.mk").is_ok() {
+            config.update_with_config_mk();
+        }
+
         return config
     }
 
@@ -412,7 +424,7 @@ impl Config {
     /// While we still have `./configure` this implements the ability to decode
     /// that configuration into this. This isn't exactly a full-blown makefile
     /// parser, but hey it gets the job done!
-    pub fn update_with_config_mk(&mut self) {
+    fn update_with_config_mk(&mut self) {
         let mut config = String::new();
         File::open("config.mk").unwrap().read_to_string(&mut config).unwrap();
         for line in config.lines() {
@@ -471,6 +483,7 @@ impl Config {
                 ("FULL_BOOTSTRAP", self.full_bootstrap),
                 ("EXTENDED", self.extended),
                 ("SANITIZERS", self.sanitizers),
+                ("PROFILER", self.profiler),
                 ("DIST_SRC", self.rust_dist_src),
                 ("CARGO_OPENSSL_STATIC", self.openssl_static),
             }
@@ -483,6 +496,9 @@ impl Config {
                 }
                 "CFG_TARGET" if value.len() > 0 => {
                     self.target.extend(value.split(" ").map(|s| s.to_string()));
+                }
+                "CFG_EXPERIMENTAL_TARGETS" if value.len() > 0 => {
+                    self.llvm_experimental_targets = Some(value.to_string());
                 }
                 "CFG_MUSL_ROOT" if value.len() > 0 => {
                     self.musl_root = Some(parse_configure_path(value));

@@ -42,8 +42,10 @@
 //! Recursive structures must be boxed, because if the definition of `Cons`
 //! looked like this:
 //!
-//! ```rust,ignore
+//! ```compile_fail,E0072
+//! # enum List<T> {
 //! Cons(T, List<T>),
+//! # }
 //! ```
 //!
 //! It wouldn't work. This is because the size of a `List` depends on how many
@@ -95,6 +97,7 @@ pub const HEAP: ExchangeHeapSingleton = ExchangeHeapSingleton { _force_singleton
 #[unstable(feature = "box_heap",
            reason = "may be renamed; uncertain about custom allocator design",
            issue = "27779")]
+#[allow(missing_debug_implementations)]
 #[derive(Copy, Clone)]
 pub struct ExchangeHeapSingleton {
     _force_singleton: (),
@@ -129,6 +132,7 @@ pub struct Box<T: ?Sized>(Unique<T>);
 #[unstable(feature = "placement_in",
            reason = "placement box design is still being worked out.",
            issue = "27779")]
+#[allow(missing_debug_implementations)]
 pub struct IntermediateBox<T: ?Sized> {
     ptr: *mut u8,
     size: usize,

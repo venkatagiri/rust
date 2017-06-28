@@ -9,7 +9,7 @@
 // except according to those terms.
 
 use borrow::{Borrow, Cow};
-use fmt::{self, Debug};
+use fmt;
 use mem;
 use ops;
 use cmp;
@@ -29,7 +29,7 @@ use sys_common::{AsInner, IntoInner, FromInner};
 /// * On Windows, strings are often arbitrary sequences of non-zero 16-bit
 ///   values, interpreted as UTF-16 when it is valid to do so.
 ///
-/// * In Rust, strings are always valid UTF-8, but may contain zeros.
+/// * In Rust, strings are always valid UTF-8, which may contain zeros.
 ///
 /// `OsString` and [`OsStr`] bridge this gap by simultaneously representing Rust
 /// and platform-native string values, and in particular allowing a Rust string
@@ -312,8 +312,8 @@ impl Default for OsString {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl Debug for OsString {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+impl fmt::Debug for OsString {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, formatter)
     }
 }
@@ -669,9 +669,15 @@ impl Hash for OsStr {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl Debug for OsStr {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        self.inner.fmt(formatter)
+impl fmt::Debug for OsStr {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.inner, formatter)
+    }
+}
+
+impl OsStr {
+    pub(crate) fn display(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.inner, formatter)
     }
 }
 

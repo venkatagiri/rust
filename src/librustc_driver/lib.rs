@@ -28,11 +28,6 @@
 #![feature(rustc_diagnostic_macros)]
 #![feature(set_stdio)]
 
-#![cfg_attr(stage0, unstable(feature = "rustc_private", issue = "27812"))]
-#![cfg_attr(stage0, feature(rustc_private))]
-#![cfg_attr(stage0, feature(staged_api))]
-#![cfg_attr(stage0, feature(loop_break_value))]
-
 extern crate arena;
 extern crate getopts;
 extern crate graphviz;
@@ -360,14 +355,21 @@ fn handle_explain(code: &str,
     };
     match descriptions.find_description(&normalised) {
         Some(ref description) => {
+            let mut is_in_code_block = false;
             // Slice off the leading newline and print.
-            print!("{}", &(&description[1..]).split("\n").map(|x| {
-                format!("{}\n", if x.starts_with("```") {
-                    "```"
+            for line in description[1..].lines() {
+                let indent_level = line.find(|c: char| !c.is_whitespace())
+                    .unwrap_or_else(|| line.len());
+                let dedented_line = &line[indent_level..];
+                if dedented_line.starts_with("```") {
+                    is_in_code_block = !is_in_code_block;
+                    println!("{}", &line[..(indent_level+3)]);
+                } else if is_in_code_block && dedented_line.starts_with("# ") {
+                    continue;
                 } else {
-                    x
-                })
-            }).collect::<String>());
+                    println!("{}", line);
+                }
+            }
         }
         None => {
             early_error(output, &format!("no extended information for {}", code));
@@ -534,15 +536,12 @@ impl<'a> CompilerCalls<'a> for RustcDefaultCalls {
 
 fn save_analysis(sess: &Session) -> bool {
     sess.opts.debugging_opts.save_analysis ||
-    sess.opts.debugging_opts.save_analysis_csv ||
     sess.opts.debugging_opts.save_analysis_api
 }
 
 fn save_analysis_format(sess: &Session) -> save::Format {
     if sess.opts.debugging_opts.save_analysis {
         save::Format::Json
-    } else if sess.opts.debugging_opts.save_analysis_csv {
-        save::Format::Csv
     } else if sess.opts.debugging_opts.save_analysis_api {
         save::Format::JsonApi
     } else {
@@ -733,10 +732,10 @@ fn usage(verbose: bool, include_unstable_options: bool) {
     } else {
         config::rustc_short_optgroups()
     };
-    let groups: Vec<_> = groups.into_iter()
-                               .filter(|x| include_unstable_options || x.is_stable())
-                               .map(|x| x.opt_group)
-                               .collect();
+    let mut options = getopts::Options::new();
+    for option in groups.iter().filter(|x| include_unstable_options || x.is_stable()) {
+        (option.apply)(&mut options);
+    }
     let message = format!("Usage: rustc [OPTIONS] INPUT");
     let extra_help = if verbose {
         ""
@@ -749,7 +748,7 @@ fn usage(verbose: bool, include_unstable_options: bool) {
               Print 'lint' options and default settings
     -Z help             Print internal \
               options for debugging rustc{}\n",
-             getopts::usage(&message, &groups),
+             options.usage(&message),
              extra_help);
 }
 
@@ -963,11 +962,11 @@ pub fn handle_options(args: &[String]) -> Option<getopts::Matches> {
 
     // Parse with *all* options defined in the compiler, we don't worry about
     // option stability here we just want to parse as much as possible.
-    let all_groups: Vec<getopts::OptGroup> = config::rustc_optgroups()
-                                                 .into_iter()
-                                                 .map(|x| x.opt_group)
-                                                 .collect();
-    let matches = match getopts::getopts(&args, &all_groups) {
+    let mut options = getopts::Options::new();
+    for option in config::rustc_optgroups() {
+        (option.apply)(&mut options);
+    }
+    let matches = match options.parse(args) {
         Ok(m) => m,
         Err(f) => early_error(ErrorOutputType::default(), &f.to_string()),
     };
@@ -1101,7 +1100,10 @@ pub fn monitor<F: FnOnce() + Send + 'static>(f: F) {
             }
 
             let xs = ["the compiler unexpectedly panicked. this is a bug.".to_string(),
-                      format!("we would appreciate a bug report: {}", BUG_REPORT_URL)];
+                      format!("we would appreciate a bug report: {}", BUG_REPORT_URL),
+                      format!("rustc {} running on {}",
+                              option_env!("CFG_VERSION").unwrap_or("unknown_version"),
+                              config::host_triple())];
             for note in &xs {
                 handler.emit(&MultiSpan::new(),
                              &note,

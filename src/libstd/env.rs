@@ -438,6 +438,35 @@ pub struct JoinPathsError {
 ///
 /// # Examples
 ///
+/// Joining paths on a Unix-like platform:
+///
+/// ```
+/// # if cfg!(unix) {
+/// use std::env;
+/// use std::ffi::OsString;
+/// use std::path::Path;
+///
+/// let paths = [Path::new("/bin"), Path::new("/usr/bin")];
+/// let path_os_string = env::join_paths(paths.iter()).unwrap();
+/// assert_eq!(path_os_string, OsString::from("/bin:/usr/bin"));
+/// # }
+/// ```
+///
+/// Joining a path containing a colon on a Unix-like platform results in an error:
+///
+/// ```
+/// # if cfg!(unix) {
+/// use std::env;
+/// use std::path::Path;
+///
+/// let paths = [Path::new("/bin"), Path::new("/usr/bi:n")];
+/// assert!(env::join_paths(paths.iter()).is_err());
+/// # }
+/// ```
+///
+/// Using `env::join_paths` with `env::spit_paths` to append an item to the `PATH` environment
+/// variable:
+///
 /// ```
 /// use std::env;
 /// use std::path::PathBuf;
@@ -712,7 +741,9 @@ impl DoubleEndedIterator for Args {
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for Args {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad("Args { .. }")
+        f.debug_struct("Args")
+            .field("inner", &self.inner.inner.inner_debug())
+            .finish()
     }
 }
 
@@ -737,7 +768,9 @@ impl DoubleEndedIterator for ArgsOs {
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for ArgsOs {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad("ArgsOs { .. }")
+        f.debug_struct("ArgsOs")
+            .field("inner", &self.inner.inner_debug())
+            .finish()
     }
 }
 
@@ -1085,4 +1118,14 @@ mod tests {
                         r#""c:\te;st";c:\"#));
         assert!(join_paths([r#"c:\te"st"#].iter().cloned()).is_err());
     }
+
+    #[test]
+    fn args_debug() {
+        assert_eq!(
+            format!("Args {{ inner: {:?} }}", args().collect::<Vec<_>>()),
+            format!("{:?}", args()));
+        assert_eq!(
+            format!("ArgsOs {{ inner: {:?} }}", args_os().collect::<Vec<_>>()),
+            format!("{:?}", args_os()));
     }
+}

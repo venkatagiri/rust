@@ -111,6 +111,7 @@ macro_rules! declare_features {
 
 declare_features! (
     (active, asm, "1.0.0", Some(29722)),
+    (active, compile_error, "1.20.0", Some(40872)),
     (active, concat_idents, "1.0.0", Some(29599)),
     (active, link_args, "1.0.0", Some(29596)),
     (active, log_syntax, "1.0.0", Some(29598)),
@@ -312,9 +313,6 @@ declare_features! (
     // Declarative macros 2.0 (`macro`).
     (active, decl_macro, "1.17.0", Some(39412)),
 
-    // Allows attributes on struct literal fields.
-    (active, struct_field_attributes, "1.16.0", Some(38814)),
-
     // Allows #[link(kind="static-nobundle"...]
     (active, static_nobundle, "1.16.0", Some(37403)),
 
@@ -324,6 +322,10 @@ declare_features! (
     // Used to identify crates that contain sanitizer runtimes
     // rustc internal
     (active, sanitizer_runtime, "1.17.0", None),
+
+    // Used to identify crates that contain the profiler runtime
+    // rustc internal
+    (active, profiler_runtime, "1.18.0", None),
 
     // `extern "x86-interrupt" fn()`
     (active, abi_x86_interrupt, "1.17.0", Some(40180)),
@@ -426,6 +428,8 @@ declare_features! (
     (accepted, relaxed_adts, "1.19.0", Some(35626)),
     // Coerces non capturing closures to function pointers
     (accepted, closure_to_fn_coercion, "1.19.0", Some(39817)),
+    // Allows attributes on struct literal fields.
+    (accepted, struct_field_attributes, "1.20.0", Some(38814)),
 );
 
 // If you change this, please modify src/doc/unstable-book as well. You must
@@ -691,6 +695,13 @@ pub const BUILTIN_ATTRIBUTES: &'static [(&'static str, AttributeType, AttributeG
                                               identify crates that contain the runtime of a \
                                               sanitizer and will never be stable",
                                              cfg_fn!(sanitizer_runtime))),
+    ("profiler_runtime", Whitelisted, Gated(Stability::Unstable,
+                                             "profiler_runtime",
+                                             "the `#[profiler_runtime]` attribute is used to \
+                                              identify the `profiler_builtins` crate which \
+                                              contains the profiler runtime and will never be \
+                                              stable",
+                                             cfg_fn!(profiler_runtime))),
 
     ("allow_internal_unstable", Normal, Gated(Stability::Unstable,
                                               "allow_internal_unstable",
@@ -997,6 +1008,9 @@ pub const EXPLAIN_LOG_SYNTAX: &'static str =
 
 pub const EXPLAIN_CONCAT_IDENTS: &'static str =
     "`concat_idents` is not stable enough for use and is subject to change";
+
+pub const EXPLAIN_COMPILE_ERROR: &'static str =
+    "`compile_error` is not stable enough for use and is subject to change";
 
 pub const EXPLAIN_TRACE_MACROS: &'static str =
     "`trace_macros` is not stable enough for use and is subject to change";

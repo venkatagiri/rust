@@ -23,6 +23,7 @@ use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::process::Command;
+use std::path::PathBuf;
 
 use build_helper::output;
 
@@ -87,6 +88,12 @@ pub fn check(build: &mut Build) {
     }
 
     if build.config.python.is_none() {
+        // set by bootstrap.py
+        if let Some(v) = env::var_os("BOOTSTRAP_PYTHON") {
+            build.config.python = Some(PathBuf::from(v));
+        }
+    }
+    if build.config.python.is_none() {
         build.config.python = have_cmd("python2.7".as_ref());
     }
     if build.config.python.is_none() {
@@ -132,7 +139,7 @@ pub fn check(build: &mut Build) {
         }
     }
     for host in build.config.host.iter() {
-        need_cmd(build.cxx(host).as_ref());
+        need_cmd(build.cxx(host).unwrap().as_ref());
     }
 
     // The msvc hosts don't use jemalloc, turn it off globally to

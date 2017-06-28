@@ -273,7 +273,7 @@ struct RcBox<T: ?Sized> {
 /// See the [module-level documentation](./index.html) for more details.
 ///
 /// The inherent methods of `Rc` are all associated functions, which means
-/// that you have to call them as e.g. [`Rc::get_mut(&value)`][get_mut] instead of
+/// that you have to call them as e.g. [`Rc::get_mut(&mut value)`][get_mut] instead of
 /// `value.get_mut()`. This avoids conflicts with methods of the inner
 /// type `T`.
 ///
@@ -428,7 +428,7 @@ impl Rc<str> {
     #[doc(hidden)]
     #[unstable(feature = "rustc_private",
                reason = "for internal use in rustc",
-               issue = "0")]
+               issue = "27812")]
     pub fn __from_str(value: &str) -> Rc<str> {
         unsafe {
             // Allocate enough space for `RcBox<str>`.
@@ -453,7 +453,7 @@ impl<T> Rc<[T]> {
     #[doc(hidden)]
     #[unstable(feature = "rustc_private",
                reason = "for internal use in rustc",
-               issue = "0")]
+               issue = "27812")]
     pub fn __from_array(value: Box<[T]>) -> Rc<[T]> {
         unsafe {
             let ptr: *mut RcBox<[T]> =

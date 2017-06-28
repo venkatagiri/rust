@@ -376,8 +376,8 @@ pub fn debugger_scripts(build: &Build,
         install(&build.src.join("src/etc/rust-windbg.cmd"), &sysroot.join("bin"),
             0o755);
 
+        cp_debugger_script("natvis/liballoc.natvis");
         cp_debugger_script("natvis/libcore.natvis");
-        cp_debugger_script("natvis/libcollections.natvis");
     } else {
         cp_debugger_script("debugger_pretty_printers_common.py");
 
@@ -567,9 +567,9 @@ pub fn rust_src(build: &Build) {
         "src/rustc/libc_shim",
         "src/libtest",
         "src/libterm",
-        "src/libgetopts",
         "src/compiler-rt",
         "src/jemalloc",
+        "src/libprofiler_builtins",
     ];
     let std_src_dirs_exclude = [
         "src/compiler-rt/test",

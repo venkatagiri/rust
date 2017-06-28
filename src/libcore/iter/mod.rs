@@ -191,10 +191,12 @@
 //! {
 //!     let result = match IntoIterator::into_iter(values) {
 //!         mut iter => loop {
-//!             let x = match iter.next() {
-//!                 Some(val) => val,
+//!             let next;
+//!             match iter.next() {
+//!                 Some(val) => next = val,
 //!                 None => break,
 //!             };
+//!             let x = next;
 //!             let () = { println!("{}", x); };
 //!         },
 //!     };
@@ -209,7 +211,7 @@
 //! There's one more subtle bit here: the standard library contains an
 //! interesting implementation of [`IntoIterator`]:
 //!
-//! ```ignore
+//! ```ignore (only-for-syntax-highlight)
 //! impl<I: Iterator> IntoIterator for I
 //! ```
 //!

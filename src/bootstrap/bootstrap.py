@@ -385,6 +385,7 @@ class RustBuild(object):
         if self.clean and os.path.exists(build_dir):
             shutil.rmtree(build_dir)
         env = os.environ.copy()
+        env["RUSTC_BOOTSTRAP"] = '1'
         env["CARGO_TARGET_DIR"] = build_dir
         env["RUSTC"] = self.rustc()
         env["LD_LIBRARY_PATH"] = os.path.join(self.bin_root(), "lib") + \
@@ -667,6 +668,7 @@ def bootstrap():
     env["BUILD"] = rb.build
     env["SRC"] = rb.rust_root
     env["BOOTSTRAP_PARENT_ID"] = str(os.getpid())
+    env["BOOTSTRAP_PYTHON"] = sys.executable
     run(args, env=env, verbose=rb.verbose)
 
 

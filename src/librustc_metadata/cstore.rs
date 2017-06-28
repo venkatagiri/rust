@@ -34,7 +34,7 @@ pub use rustc::middle::cstore::{NativeLibrary, NativeLibraryKind, LinkagePrefere
 pub use rustc::middle::cstore::NativeLibraryKind::*;
 pub use rustc::middle::cstore::{CrateSource, LinkMeta, LibSource};
 
-pub use cstore_impl::provide;
+pub use cstore_impl::{provide, provide_local};
 
 // A map from external crate numbers (as decoded from some crate file) to
 // local crate numbers (as generated during this session). Each external
@@ -303,6 +303,11 @@ impl CrateMetadata {
     pub fn is_sanitizer_runtime(&self, dep_graph: &DepGraph) -> bool {
         let attrs = self.get_item_attrs(CRATE_DEF_INDEX, dep_graph);
         attr::contains_name(&attrs, "sanitizer_runtime")
+    }
+
+    pub fn is_profiler_runtime(&self, dep_graph: &DepGraph) -> bool {
+        let attrs = self.get_item_attrs(CRATE_DEF_INDEX, dep_graph);
+        attr::contains_name(&attrs, "profiler_runtime")
     }
 
     pub fn is_no_builtins(&self, dep_graph: &DepGraph) -> bool {

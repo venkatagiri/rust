@@ -33,18 +33,14 @@
 #![feature(quote)]
 #![feature(rustc_diagnostic_macros)]
 #![feature(slice_patterns)]
-#![feature(unicode)]
 #![feature(conservative_impl_trait)]
 #![feature(command_envs)]
-
-#![cfg_attr(stage0, unstable(feature = "rustc_private", issue = "27812"))]
-#![cfg_attr(stage0, feature(rustc_private))]
-#![cfg_attr(stage0, feature(staged_api))]
 
 use rustc::dep_graph::WorkProduct;
 use syntax_pos::symbol::Symbol;
 
-extern crate flate;
+extern crate flate2;
+extern crate crossbeam;
 extern crate libc;
 extern crate owning_ref;
 #[macro_use] extern crate rustc;
@@ -57,6 +53,7 @@ extern crate rustc_const_math;
 #[macro_use]
 #[no_link]
 extern crate rustc_bitflags;
+extern crate jobserver;
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate syntax;

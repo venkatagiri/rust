@@ -328,11 +328,18 @@ pub fn align_of_val<T: ?Sized>(val: &T) -> usize {
 ///
 /// Here's an example of how a collection might make use of needs_drop:
 ///
-/// ```ignore
+/// ```
 /// #![feature(needs_drop)]
 /// use std::{mem, ptr};
 ///
-/// pub struct MyCollection<T> { /* ... */ }
+/// pub struct MyCollection<T> {
+/// #   data: [T; 1],
+///     /* ... */
+/// }
+/// # impl<T> MyCollection<T> {
+/// #   fn iter_mut(&mut self) -> &mut [T] { &mut self.data }
+/// #   fn free_buffer(&mut self) {}
+/// # }
 ///
 /// impl<T> Drop for MyCollection<T> {
 ///     fn drop(&mut self) {
@@ -504,8 +511,8 @@ pub fn swap<T>(x: &mut T, y: &mut T) {
         // Haswell E processors. LLVM is more able to optimize if we give a struct a
         // #[repr(simd)], even if we don't actually use this struct directly.
         //
-        // FIXME repr(simd) broken on emscripten
-        #[cfg_attr(not(target_os = "emscripten"), repr(simd))]
+        // FIXME repr(simd) broken on emscripten and redox
+        #[cfg_attr(not(any(target_os = "emscripten", target_os = "redox")), repr(simd))]
         struct Block(u64, u64, u64, u64);
         struct UnalignedBlock(u64, u64, u64, u64);
 
@@ -575,7 +582,7 @@ pub fn swap<T>(x: &mut T, y: &mut T) {
 /// `replace` allows consumption of a struct field by replacing it with another value.
 /// Without `replace` you can run into issues like these:
 ///
-/// ```ignore
+/// ```compile_fail,E0507
 /// struct Buffer<T> { buf: Vec<T> }
 ///
 /// impl<T> Buffer<T> {
@@ -645,7 +652,7 @@ pub fn replace<T>(dest: &mut T, mut src: T) -> T {
 ///
 /// Borrows are based on lexical scope, so this produces an error:
 ///
-/// ```ignore
+/// ```compile_fail,E0502
 /// let mut v = vec![1, 2, 3];
 /// let x = &v[0];
 ///

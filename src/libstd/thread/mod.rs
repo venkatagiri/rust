@@ -172,7 +172,7 @@ pub use self::local::{LocalKey, LocalKeyState};
 
 #[unstable(feature = "libstd_thread_internals", issue = "0")]
 #[cfg(target_thread_local)]
-#[doc(hidden)] pub use sys::fast_thread_local::Key as __FastLocalKeyInner;
+#[doc(hidden)] pub use self::local::fast::Key as __FastLocalKeyInner;
 #[unstable(feature = "libstd_thread_internals", issue = "0")]
 #[doc(hidden)] pub use self::local::os::Key as __OsLocalKeyInner;
 
@@ -787,12 +787,16 @@ pub fn park_timeout_ms(ms: u32) {
 ///
 /// let timeout = Duration::from_secs(2);
 /// let beginning_park = Instant::now();
-/// park_timeout(timeout);
 ///
-/// while beginning_park.elapsed() < timeout {
-///     println!("restarting park_timeout after {:?}", beginning_park.elapsed());
-///     let timeout = timeout - beginning_park.elapsed();
-///     park_timeout(timeout);
+/// let mut timeout_remaining = timeout;
+/// loop {
+///     park_timeout(timeout_remaining);
+///     let elapsed = beginning_park.elapsed();
+///     if elapsed >= timeout {
+///         break;
+///     }
+///     println!("restarting park_timeout after {:?}", elapsed);
+///     timeout_remaining = timeout - elapsed;
 /// }
 /// ```
 ///
